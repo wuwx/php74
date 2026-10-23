@@ -24,19 +24,9 @@ name=CentOS-7.9.2009 - Extras
 baseurl=http://vault.centos.org/7.9.2009/extras/$basearch/
 gpgcheck=0
 
-[epel]
+[epel-archive]
 name=EPEL 7 (archive)
 baseurl=https://archives.fedoraproject.org/pub/archive/epel/7/$basearch/
-gpgcheck=0
-
-[remi-safe]
-name=Remi's EL7 safe
-baseurl=https://rpms.remirepo.net/enterprise/7/safe/$basearch/
-gpgcheck=0
-
-[remi-php74]
-name=Remi's EL7 php74
-baseurl=https://rpms.remirepo.net/enterprise/7/php74/$basearch/
 gpgcheck=0
 
 [ol7-instantclient21]
@@ -54,6 +44,15 @@ EOF
 
 yum -y install yum-plugin-ovl || echo "yum-plugin-ovl 不可用，继续"
 yum -y install yum-utils rpm-build tar xz which
+
+echo "== 安装 remi-release 并启用 remi =="
+yum -y install --nogpgcheck https://rpms.remirepo.net/enterprise/remi-release-7.rpm
+# 随之装上的 epel-release 会写入已失效的 mirrorlist，删掉，继续用上面的归档源
+rm -f /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel-testing.repo
+# EL7 EOL 后 mirrorlist 不可靠，改直连 rpms.remirepo.net
+sed -i -e 's|^mirrorlist=|#mirrorlist=|' -e 's|^#baseurl=|baseurl=|' \
+    -e 's|^gpgcheck=1|gpgcheck=0|' /etc/yum.repos.d/remi*.repo
+yum-config-manager --enable remi remi-safe >/dev/null
 
 echo "== 取 el8 容器解出的 SOURCES =="
 SRPM_TREE=/work/.ci/srpm
