@@ -67,21 +67,22 @@ SPEC=$TOPDIR/SPECS/php74.spec
 
 echo "== 校验 spec 实际引用的 Source/Patch 是否齐全 =="
 # 展开条件分支后才知道 EL7 到底用哪些补丁
-rpmspec -P "$SPEC" >/tmp/expanded.spec
+if ! rpmspec -P "$SPEC" >/tmp/expanded.spec; then
+  echo "rpmspec 解析 spec 失败"
+  exit 1
+fi
 
-: >/tmp/needed.txt
-sed -nE 's/^%patch[[:space:]]+-P([0-9]+).*/\1/p' /tmp/expanded.spec | sort -u |
+# 展开后 %{SOURCE2} 已变成绝对路径，直接抓 SOURCES 下的文件名
+src_refs=$(grep -oE "${TOPDIR}/SOURCES/[^[:space:]\"';]+" /tmp/expanded.spec |
+  sed 's#.*/##' | sort -u || true)
+tarball=$(sed -nE 's/^Source0:[[:space:]]*([^[:space:]]+).*/\1/p' /tmp/expanded.spec | sed 's#.*/##')
+patch_files=$(sed -nE 's/^%patch[[:space:]]+-P([0-9]+).*/\1/p' /tmp/expanded.spec | sort -u |
   while read -r n; do
-    sed -nE "s/^Patch${n}:[[:space:]]*([^[:space:]]+).*/\1/p" "$SPEC"
-  done >>/tmp/needed.txt
-grep -oE '%\{SOURCE[0-9]+\}' /tmp/expanded.spec | sort -u | tr -d '{}' | sed 's/^SOURCE//' |
-  while read -r n; do
-    sed -nE "s/^Source${n}:[[:space:]]*([^[:space:]]+).*/\1/p" "$SPEC"
-  done >>/tmp/needed.txt
-sed -nE 's/^Source0:[[:space:]]*([^[:space:]]+).*/\1/p' "$SPEC" | xargs -r basename >>/tmp/needed.txt
+    sed -nE "s/^Patch${n}:[[:space:]]*([^[:space:]]+).*/\1/p" /tmp/expanded.spec
+  done || true)
 
 missing=0
-while read -r f; do
+for f in $patch_files $tarball $src_refs; do
   case "$f" in
     http*|ftp*) continue ;;
   esac
@@ -89,11 +90,12 @@ while read -r f; do
     echo "缺少: $f"
     missing=1
   fi
-done </tmp/needed.txt
+done
 if [ "$missing" -ne 0 ]; then
   echo "src.rpm 内容与仓库 spec 不匹配"
   exit 1
 fi
+echo "OK: 补丁 $(echo "$patch_files" | wc -w) 个，源文件 $(echo "$src_refs" | wc -w) 个"
 
 echo "== 安装 BuildRequires =="
 yum-builddep -y "$SPEC"
