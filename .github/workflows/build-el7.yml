@@ -25,24 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # php 全套子包（含 ZTS/litespeed/debuginfo）编译产物较大
-      - name: 腾出磁盘空间
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
-          df -h /
-
       - name: 下载 src.rpm
-        env:
-          SRC_RPM_URL: ${{ secrets.SRC_RPM_URL }}
         run: |
-          if [ -z "$SRC_RPM_URL" ]; then
-            echo "缺少 repository secret: SRC_RPM_URL" >&2
-            exit 1
-          fi
           mkdir -p .ci/input dist
-          name=$(basename "${SRC_RPM_URL%%\?*}")
-          curl -fsSL --retry 3 --retry-delay 5 -o ".ci/input/$name" "$SRC_RPM_URL"
+          curl -fsSL --retry 3 --retry-delay 5 -o .ci/input/php-7.4.33-31.remi.src.rpm \
+            https://rpms.remirepo.net/SRPMS/php-7.4.33-31.remi.src.rpm
           ls -l .ci/input
+
+      - name: 解包 src.rpm
+        run: docker run --rm -v "$PWD:/work" -w /work almalinux:8 bash ci/el8/extract-srpm.sh
 
       - name: 在 centos:7 中构建
         run: docker run --rm -v "$PWD:/work" -w /work centos:7 bash ci/el7/build.sh

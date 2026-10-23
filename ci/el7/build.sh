@@ -3,7 +3,6 @@
 set -euo pipefail
 
 SPEC_SRC=/work/php74.spec
-INPUT_DIR=/work/.ci/input
 OUT_DIR=/work/dist
 TOPDIR=/root/rpmbuild
 
@@ -56,10 +55,12 @@ EOF
 yum -y install yum-plugin-ovl || echo "yum-plugin-ovl 不可用，继续"
 yum -y install yum-utils rpm-build tar xz which
 
-echo "== 展开 src.rpm（仅作为 SOURCES 来源） =="
-SRPM=$(ls "$INPUT_DIR"/*.src.rpm | head -n1)
-echo "src.rpm: $SRPM"
-rpm -Uvh --nodeps --nosignature --define "_topdir $TOPDIR" "$SRPM"
+echo "== 取 el8 容器解出的 SOURCES =="
+SRPM_TREE=/work/.ci/srpm
+[ -d "$SRPM_TREE/SOURCES" ] || { echo "缺少 $SRPM_TREE/SOURCES，先跑解包步骤"; exit 1; }
+rm -rf "$TOPDIR/SOURCES"
+mkdir -p "$TOPDIR"/{BUILD,RPMS,SRPMS,SPECS}
+cp -a "$SRPM_TREE/SOURCES" "$TOPDIR/SOURCES"
 
 cp "$SPEC_SRC" "$TOPDIR/SPECS/php74.spec"
 SPEC=$TOPDIR/SPECS/php74.spec
