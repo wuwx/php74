@@ -1,0 +1,64 @@
+name: build php74 rpm (el7)
+
+on:
+  workflow_dispatch:
+    inputs:
+      push_package_cloud:
+        description: 构建成功后推送到 package_cloud
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: build-el7-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PKGCLOUD_REPO: wuwx/php74/el/7
+
+jobs:
+  rpm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      # php 全套子包（含 ZTS/litespeed/debuginfo）编译产物较大
+      - name: 腾出磁盘空间
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
+          df -h /
+
+      - name: 下载 src.rpm
+        env:
+          SRC_RPM_URL: ${{ secrets.SRC_RPM_URL }}
+        run: |
+          if [ -z "$SRC_RPM_URL" ]; then
+            echo "缺少 repository secret: SRC_RPM_URL" >&2
+            exit 1
+          fi
+          mkdir -p .ci/input dist
+          name=$(basename "${SRC_RPM_URL%%\?*}")
+          curl -fsSL --retry 3 --retry-delay 5 -o ".ci/input/$name" "$SRC_RPM_URL"
+          ls -l .ci/input
+
+      - name: 在 centos:7 中构建
+        run: docker run --rm -v "$PWD:/work" -w /work centos:7 bash ci/el7/build.sh
+
+      - name: 上传 RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: php74-el7
+          path: dist/*.rpm
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 推送到 package_cloud
+        if: github.event_name == 'push' || inputs.push_package_cloud
+        env:
+          PACKAGECLOUD_TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
+        run: |
+          gem install --no-document package_cloud
+          package_cloud push "$PKGCLOUD_REPO" dist/*.rpm

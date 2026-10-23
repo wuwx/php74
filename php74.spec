@@ -24,10 +24,18 @@
 
 %global mysql_sock %(mysql_config --socket 2>/dev/null || echo /var/lib/mysql/mysql.sock)
 
+%if 0%{?rhel} == 7
+# EL7 仓库只提供 Instant Client 21
+%global oraclever 21.0
+%global oraclemax 22
+%global oraclelib 21.1
+%global oracledir 21
+%else
 %global oraclever 23.26.3
 %global oraclemax 24
 %global oraclelib 23.1
 %global oracledir 23
+%endif
 
 # Build for LiteSpeed Web Server (LSAPI)
 %global with_lsws     1
@@ -778,7 +786,12 @@ Summary:        A module for PHP applications that use OCI8 databases
 Group:          Development/Languages
 # All files licensed under PHP version 3.01
 License:        PHP
+%if 0%{?rhel} == 7
+# rpm 4.11 不支持富依赖
+BuildRequires:  oracle-instantclient-devel >= %{oraclever}
+%else
 BuildRequires: (oracle-instantclient-devel >= %{oraclever} with oracle-instantclient-devel < %{oraclemax})
+%endif
 Requires:       php-pdo%{?_isa} = %{version}-%{release}
 Provides:       php_database
 Provides:       php-pdo_oci
@@ -1076,9 +1089,15 @@ Group: System Environment/Libraries
 # All files licensed under PHP version 3.01
 License: PHP
 Requires: php-common%{?_isa} = %{version}-%{release}
+%if 0%{?rhel} == 7
+BuildRequires: pkgconfig(icu-i18n) >= 50
+BuildRequires: pkgconfig(icu-io)   >= 50
+BuildRequires: pkgconfig(icu-uc)   >= 50
+%else
 BuildRequires: pkgconfig(icu-i18n) >= 74
 BuildRequires: pkgconfig(icu-io)   >= 74
 BuildRequires: pkgconfig(icu-uc)   >= 74
+%endif
 %if 0%{?rhel} == 7
 Obsoletes: php53-intl, php53u-intl, php54-intl, php54w-intl, php55u-intl, php55w-intl, php56u-intl, php56w-intl
 Obsoletes: php70u-intl, php70w-intl, php71u-intl, php71w-intl, php72u-intl, php72w-intl
@@ -1216,7 +1235,9 @@ in pure PHP.
 %patch -P6 -p1 -b .embed
 %patch -P8 -p1 -b .libdb
 %patch -P10 -p1 -b .gcc14
+%if 0%{?rhel} >= 8
 %patch -P11 -p1 -b .icu74
+%endif
 %patch -P12 -p1 -b .proto
 %patch -P13 -p1 -b .bash53
 
