@@ -54,12 +54,17 @@ sed -i -e 's|^mirrorlist=|#mirrorlist=|' -e 's|^#baseurl=|baseurl=|' \
     -e 's|^gpgcheck=1|gpgcheck=0|' /etc/yum.repos.d/remi*.repo
 yum-config-manager --enable remi remi-safe >/dev/null
 
-echo "== 取 el8 容器解出的 SOURCES =="
-SRPM_TREE=/work/.ci/srpm
-[ -d "$SRPM_TREE/SOURCES" ] || { echo "缺少 $SRPM_TREE/SOURCES，先跑解包步骤"; exit 1; }
+echo "== 解包 src.rpm =="
+# rpm -i 会校验签名，el7 的 rpm 4.11 不认 el8 之后的新算法，rpm2cpio 只读 header 和 payload
+SRPM=$(ls /work/.ci/input/*.src.rpm | head -n1)
+echo "src.rpm: $SRPM"
 rm -rf "$TOPDIR/SOURCES"
-mkdir -p "$TOPDIR"/{BUILD,RPMS,SRPMS,SPECS}
-cp -a "$SRPM_TREE/SOURCES" "$TOPDIR/SOURCES"
+mkdir -p "$TOPDIR"/{BUILD,RPMS,SRPMS,SPECS,SOURCES}
+(
+  cd "$TOPDIR/SOURCES"
+  rpm2cpio "$SRPM" | cpio -idm --quiet
+)
+echo "SOURCES 文件数: $(ls "$TOPDIR/SOURCES" | wc -l)"
 
 cp "$SPEC_SRC" "$TOPDIR/SPECS/php74.spec"
 SPEC=$TOPDIR/SPECS/php74.spec

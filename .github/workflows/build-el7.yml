@@ -32,9 +32,6 @@ jobs:
             https://rpms.remirepo.net/SRPMS/php-7.4.33-31.remi.src.rpm
           ls -l .ci/input
 
-      - name: 解包 src.rpm
-        run: docker run --rm -v "$PWD:/work" -w /work almalinux:8 bash ci/el8/extract-srpm.sh
-
       - name: 在 centos:7 中构建
         run: docker run --rm -v "$PWD:/work" -w /work centos:7 bash ci/el7/build.sh
 
