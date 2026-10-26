@@ -1,0 +1,21 @@
+# 构建产物
+/dist/
+*.rpm
+
+# CI 下载的上游源码包
+/.ci/
+
+# rpmbuild 中间目录
+/BUILD/
+/BUILDROOT/
+/RPMS/
+/SRPMS/
+/SOURCES/
+/SPECS/
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
